@@ -1,0 +1,59 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { color-scheme: light; }
+
+html, body, #root { height: 100%; }
+body {
+  margin: 0;
+  background: #FAFAFB;
+  color: #101013;
+  font-family: Geist, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+* { font-feature-settings: "cv11", "ss01"; }
+.tabular { font-variant-numeric: tabular-nums; }
+
+::selection { background: #DDD6FE; color: #101013; }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: #E2E2E8; border-radius: 8px; border: 2px solid #FAFAFB; }
+::-webkit-scrollbar-thumb:hover { background: #D2D2DA; }
+::-webkit-scrollbar-track { background: transparent; }
+
+@layer components {
+  .panel {
+    @apply rounded-xl border border-line bg-surface shadow-card;
+  }
+  .panel-pad { @apply p-5; }
+  .eyebrow {
+    @apply text-[11px] font-semibold uppercase tracking-[0.12em] text-muted;
+  }
+  /* Tactile, flat controls — no pill, no glow */
+  .btn {
+    @apply inline-flex h-9 items-center justify-center gap-2 rounded-md px-3.5 text-sm font-medium
+           transition-[background,transform,border-color] duration-150 select-none
+           active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2
+           focus-visible:ring-brand-200 focus-visible:ring-offset-1 disabled:opacity-50 disabled:active:scale-100;
+  }
+  .btn-primary { @apply btn bg-brand-700 text-white hover:bg-brand-600; }
+  .btn-ghost { @apply btn border border-line bg-surface text-body hover:bg-canvas hover:border-line-strong; }
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-md border border-line bg-surface px-2 py-1
+           text-xs font-medium text-body;
+  }
+  .navitem {
+    @apply flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium text-muted
+           transition-colors hover:bg-canvas hover:text-ink;
+  }
+  .navitem-active {
+    @apply bg-brand-50 text-brand-700 hover:bg-brand-50 hover:text-brand-700;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+}

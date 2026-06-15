@@ -1,0 +1,36 @@
+# Secrets — NEVER commit
+.env
+*.env
+!*.env.example
+backend/.env
+**/secrets/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# Node / Vite
+node_modules/
+dist/
+.vite/
+*.local
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Splunk artifacts / tokens
+*.pem
+*_token.txt
+mcp_token*
+
+# Demo capture scratch + large raw recordings (final demo lives on YouTube)
+docs/demo/capture/
+*.mp4
+!docs/demo/NEX_demo_run.mp4

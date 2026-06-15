@@ -1,0 +1,38 @@
+{
+  "name": "APT — Phish to Cloud Exfil",
+  "description": "Multi-stage intrusion: Okta phish/MFA fatigue -> valid-account login -> EC2 recon -> S3 exfiltration to an attacker-controlled bucket. Okta brute force and suspicious PowerShell ARE covered by existing detections; the S3 exfiltration (ATT&CK T1537) is the planted blind spot NEX should find and close.",
+  "sourcetypes": [
+    {"name": "okta:im2", "index": "identity", "events": 1840},
+    {"name": "XmlWinEventLog:Microsoft-Windows-Sysmon/Operational", "index": "endpoint", "events": 9120},
+    {"name": "aws:cloudtrail", "index": "cloud", "events": 4502},
+    {"name": "cisco:asa", "index": "network", "events": 2610}
+  ],
+  "existing_detections": [
+    {"name": "Okta MFA Fatigue / Brute Force", "technique": "T1110", "tactic": "Credential Access", "sourcetype": "okta:im2"},
+    {"name": "Suspicious PowerShell Encoded Command", "technique": "T1059.001", "tactic": "Execution", "sourcetype": "XmlWinEventLog:Microsoft-Windows-Sysmon/Operational"},
+    {"name": "AWS Console Login Without MFA", "technique": "T1078.004", "tactic": "Initial Access", "sourcetype": "aws:cloudtrail"}
+  ],
+  "events": [
+    {"_time": "2026-06-08T01:12:00Z", "sourcetype": "okta:im2", "technique": "T1110", "user": "j.alvarez", "outcome": "FAILURE", "eventType": "user.authentication.auth_via_mfa", "count": 14, "_raw": "Okta: repeated MFA prompts for j.alvarez from 45.133.x.x"},
+    {"_time": "2026-06-08T01:19:00Z", "sourcetype": "okta:im2", "technique": "T1078", "user": "j.alvarez", "outcome": "SUCCESS", "eventType": "user.session.start", "_raw": "Okta: successful login j.alvarez from 45.133.x.x after MFA approval"},
+    {"_time": "2026-06-08T01:41:00Z", "sourcetype": "XmlWinEventLog:Microsoft-Windows-Sysmon/Operational", "technique": "T1059.001", "host": "FIN-WS-07", "EventCode": 1, "_raw": "Sysmon EID1 powershell.exe -enc aQBlAHgA... j.alvarez"},
+    {"_time": "2026-06-08T02:03:00Z", "sourcetype": "aws:cloudtrail", "technique": "T1078.004", "user": "svc-deploy", "eventName": "ConsoleLogin", "_raw": "CloudTrail ConsoleLogin svc-deploy MFA=false sourceIP=45.133.x.x"},
+    {"_time": "2026-06-08T02:20:00Z", "sourcetype": "aws:cloudtrail", "technique": "T1580", "user": "svc-deploy", "eventName": "DescribeInstances", "_raw": "CloudTrail DescribeInstances svc-deploy (cloud infra discovery)"},
+    {"_time": "2026-06-08T02:48:00Z", "sourcetype": "aws:cloudtrail", "technique": "T1537", "user": "svc-deploy", "eventName": "PutObject", "bucket": "ext-billing-archive-9b2", "external": true, "count": 312, "_raw": "CloudTrail PutObject svc-deploy -> s3://ext-billing-archive-9b2 (NOT in account asset inventory) 312 objects, 4.1GB"},
+    {"_time": "2026-06-08T02:49:00Z", "sourcetype": "aws:cloudtrail", "technique": "T1537", "user": "svc-deploy", "eventName": "PutBucketAcl", "bucket": "ext-billing-archive-9b2", "external": true, "_raw": "CloudTrail PutBucketAcl svc-deploy granted cross-account write to 9b2 bucket"}
+  ],
+  "planted_gap": {
+    "technique": "T1537",
+    "name": "Transfer Data to Cloud Account",
+    "tactic": "Exfiltration",
+    "why": "312 PutObject calls to an external S3 bucket not in the asset inventory, yet no existing detection covers cross-account/external S3 writes. The attack is fully present in aws:cloudtrail but invisible to the current detection set.",
+    "candidate_spl": "index=cloud sourcetype=aws:cloudtrail eventName=PutObject | where NOT bucket IN (asset_inventory_buckets) | stats count sum(eval(coalesce(bytes,0))) as bytes by user bucket | where count > 50",
+    "candidate_sigma": {
+      "title": "S3 Exfiltration to External Bucket (T1537)",
+      "logsource": {"product": "aws", "service": "cloudtrail"},
+      "detection": {"sel": {"eventName": "PutObject", "external_bucket": true}, "condition": "sel | count() > 50"},
+      "level": "high",
+      "tags": ["attack.exfiltration", "attack.t1537"]
+    }
+  }
+}
