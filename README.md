@@ -1,6 +1,6 @@
-# NEX — Autonomous Purple-Team for Splunk
+# NEX Autonomous Purple-Team for Splunk
 
-> **NEX finds the detection blind spots in your Splunk deployment that you don't know you have — then closes them.**
+> **NEX finds the detection blind spots in your Splunk deployment that you don't know you have then closes them.**
 
 NEX is an agentic security solution for the **Splunk Agentic Ops Hackathon (Security track)**. It attacks your *own* Splunk data the way a bug-bounty hunter would, **proves** a detection-coverage gap exists (runs the SPL, gets zero hits), runs a self-skeptic pass to suppress false positives, then **writes and deploys the detection** that closes the gap — as both an SPL saved search and a portable Sigma rule.
 
