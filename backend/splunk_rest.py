@@ -85,8 +85,12 @@ class SplunkRest:
         return spl
 
     def _oneshot(self, spl: str) -> list[dict]:
-        """Run a blocking search and return result rows."""
-        search = self._normalize(spl)
+        """Run a blocking search (index-normalized) and return result rows."""
+        return self._oneshot_raw(self._normalize(spl))
+
+    def _oneshot_raw(self, search: str) -> list[dict]:
+        """Run SPL verbatim — for generating commands (`| metadata`, `| tstats`) that must
+        not be rewritten by `_normalize`. Still safety-checked before it reaches Splunk."""
         assert_safe_spl(search)  # refuse write/exfil/execute commands before they hit Splunk
         r = self._http.post(
             f"{self._base}/services/search/jobs/export",
@@ -115,6 +119,57 @@ class SplunkRest:
         sourcetypes = [{"name": r["sourcetype"], "index": self._index, "events": int(r["count"])}
                        for r in st_rows]
         return {"sourcetypes": sourcetypes, "detections": self._list_detections()}
+
+    # CIM data models NEX scores visibility against, and the tstats datamodel name to probe.
+    _CIM_DATAMODELS = {
+        "Authentication": "Authentication", "Endpoint": "Endpoint",
+        "Network_Traffic": "Network_Traffic", "Network_Resolution": "Network_Resolution",
+        "Web": "Web", "Email": "Email", "Change": "Change", "Data_Access": "Data_Access",
+    }
+
+    def telemetry_posture(self) -> list[dict]:
+        """Measured per-sourcetype signals for the tiered visibility engine.
+
+        Production path for Marcus's "data presence != detection capability" point:
+          * volume / first-seen / last-seen come from `| metadata type=sourcetypes` (cheap).
+          * CIM membership is the real test — for each CIM data model we `| tstats` the
+            sourcetypes that actually populate it (accelerated), so "we have the data source"
+            only counts as good when it's genuinely CIM-normalized and queryable, not merely
+            ingested. A sourcetype ingested but never CIM-mapped scores `partial`, because
+            that's exactly when an ESCU/data-model detection silently fails to fire.
+        """
+        meta = self._oneshot_raw(
+            f"| metadata type=sourcetypes index={self._index} "
+            f"| fields sourcetype totalCount firstTime lastTime")
+        cim_by_st = self._cim_membership()
+        out = []
+        for r in meta:
+            st = r.get("sourcetype")
+            if not st:
+                continue
+            out.append({
+                "name": st,
+                "events": int(float(r.get("totalCount", 0) or 0)),
+                "latest": float(r.get("lastTime", 0) or 0) or None,
+                "earliest": float(r.get("firstTime", 0) or 0) or None,
+                "cim_models": sorted(cim_by_st.get(st, set())),  # [] = measured, not CIM-mapped
+            })
+        return out
+
+    def _cim_membership(self) -> dict[str, set[str]]:
+        """sourcetype -> {CIM data models it actually populates}, via tstats on each model."""
+        by_st: dict[str, set[str]] = {}
+        for model, dm in self._CIM_DATAMODELS.items():
+            try:
+                rows = self._oneshot_raw(
+                    f"| tstats count from datamodel={dm} where index={self._index} by sourcetype")
+            except Exception:  # noqa: BLE001 - model not installed/accelerated -> treat as absent
+                continue
+            for r in rows:
+                st = r.get("sourcetype") or r.get("sourcetype{}")  # tstats may flatten the field name
+                if st:
+                    by_st.setdefault(st, set()).add(model)
+        return by_st
 
     def _list_detections(self) -> list[dict]:
         r = self._http.get(

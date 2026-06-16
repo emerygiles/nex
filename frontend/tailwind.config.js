@@ -26,10 +26,12 @@ export default {
           800: "#5B21B6",
         },
         // Functional status (data semantics only — desaturated)
-        blind: "#E11D48", // uncovered / blind spot
+        blind: "#E11D48", // uncovered / blind spot / tier "none"
         "blind-soft": "#FFF1F3",
-        secure: "#059669", // covered / closed
+        secure: "#059669", // covered / closed / tier "good"
         "secure-soft": "#ECFDF5",
+        warn: "#B45309", // partial visibility / tier "partial"
+        "warn-soft": "#FFFBEB",
         // Terminal surface for SPL/Sigma (uses black in the palette)
         term: "#0B0B0F",
       },

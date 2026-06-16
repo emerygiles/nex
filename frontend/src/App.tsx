@@ -18,7 +18,7 @@ import VisibilityPanel from "./components/VisibilityPanel";
 const META: Record<View, { title: string; subtitle: string }> = {
   coverage: { title: "Detection Coverage", subtitle: "Autonomous gap analysis across your Splunk telemetry" },
   surface: { title: "Surface Map", subtitle: "Every ATT&CK technique observed, mapped to current coverage" },
-  visibility: { title: "Visibility Gaps", subtitle: "Techniques you have no data source to even see — the gaps under the gaps" },
+  visibility: { title: "Visibility Gaps", subtitle: "Tiered data-source coverage (none/partial/good), ranked by threat profile — the gaps under the gaps" },
   detections: { title: "Detections", subtitle: "Deployed saved-search detections — baseline and NEX-authored" },
   activity: { title: "Activity", subtitle: "The agent's reasoning and tool calls, step by step" },
 };

@@ -26,13 +26,34 @@ Every SOC has detection gaps. Finding them is slow, manual, and depends on an an
 
 ## Visibility coverage — the "gaps under the gaps"
 
-Rule coverage only matters for techniques whose telemetry you actually collect. NEX also runs a
-**data-source coverage** check: it maps high-value ATT&CK techniques to the data sources required
-to even *observe* them, and flags the ones you have **no telemetry for at all** — techniques that
-don't show up as "uncovered," they show up as *nothing*. Detection coverage = rule coverage ×
-data-source coverage. (`GET /visibility`, the **Visibility** view, and a recon step in the loop.)
+Rule coverage only matters for techniques whose telemetry you actually collect *and can query*.
+NEX runs a **tiered visibility check** alongside the rule-gap finder. Detection coverage =
+rule coverage × data-source coverage. (`GET /visibility`, the **Visibility** view, and a recon
+step in the loop.) It is built directly on Splunk Enterprise Architect **Marcus House**'s review:
 
-> Credit: Splunk Enterprise Architect **Marcus House** raised this on the project's LinkedIn post.
+- **STIX-driven, not hand-mapped.** Technique → telemetry comes from ATT&CK's own STIX bundle
+  (the v17 detection-strategy / analytic model, with concrete log sources like `AWS:CloudTrail`,
+  `WinEventLog:Sysmon`, `saas:okta`). It generalizes to ~600 techniques and survives each ATT&CK
+  release. Regenerate with `python scripts/build_attack_mapping.py` (uses `mitreattack-python`).
+- **Tiered, not boolean.** Each technique scores **good / partial / none** from DeTT&CT-style
+  data-quality dimensions — *completeness, timeliness, retention, consistency* — not a single
+  visible/blind bit. Having firewall flow logs isn't PCAP; having a feed isn't having the fields.
+- **Splunk reality.** "Have the data source" means **onboarded AND CIM-normalized AND within the
+  search window**. ESCU content assumes CIM, so a log that's ingested but not mapped into the
+  right CIM data model still won't fire a detection — that's the `consistency` dimension, and on
+  the live backend it's *measured* with `| tstats` against each CIM data model.
+- **Remediation, not just flagging.** Every gap carries the concrete Splunk input to onboard or
+  CIM-map to close it — recon is the flag, remediation is the payoff.
+- **Priority queue, not flat list.** Techniques are ranked against a configurable **threat
+  profile** (`THREAT_PROFILE`, see `backend/threat_profiles.py`; `GET /threat-profiles`), so the
+  org's actual exposure floats to the top.
+
+**OR vs AND across data sources:** NEX uses **OR** to decide "can you see it at all" (any one
+relevant CIM data model present → some visibility) and then **weights the count and quality** of
+the present sources for the tier. A short, documented overlay applies **AND** for the few
+techniques with a genuinely *necessary* primary source (e.g. S3 object-exfil needs CloudTrail
+*data events* — the management plane can't see it). Pure AND invents blind spots; pure OR throws
+away the quality signal. See the note at the top of `backend/threat_profiles.py`.
 
 ## Production safety
 

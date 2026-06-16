@@ -26,6 +26,26 @@ class MockMCP:
             "detections": self._detections,
         }
 
+    def telemetry_posture(self) -> list[dict]:
+        """Per-sourcetype measured signals for the visibility engine.
+
+        The sandbox presents a *healthy, live* deployment (fresh ingest, 30-day history) so
+        the tiering reflects real data quality — notably `cim_models`, where cisco:asa is
+        onboarded but not CIM-normalized, exactly the kind of gap-under-the-gap a real SOC
+        hits. The live backend (`SplunkRest.telemetry_posture`) measures these from Splunk.
+        """
+        import time
+        now = time.time()
+        out = []
+        for st in self._scenario["sourcetypes"]:
+            out.append({
+                "name": st["name"], "events": st.get("events", 0),
+                "latest": now - 1800,            # last event ~30 min ago (actively flowing)
+                "earliest": now - 30 * 86400,    # 30 days of history
+                "cim_models": st.get("cim_models", None),
+            })
+        return out
+
     def map_attack_surface(self) -> list[dict]:
         covered = {d["technique"] for d in self._detections}
         seen: dict[str, dict] = {}

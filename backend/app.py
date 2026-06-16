@@ -65,14 +65,31 @@ def coverage():
     }
 
 
+def _telemetry_sources(mcp) -> list[dict]:
+    """Measured telemetry posture if the backend supports it, else fall back to sourcetypes."""
+    if hasattr(mcp, "telemetry_posture"):
+        try:
+            return mcp.telemetry_posture()
+        except Exception:  # noqa: BLE001 - degrade to volume-only rather than failing the view
+            pass
+    return mcp.enumerate_coverage().get("sourcetypes", [])
+
+
 @app.get("/visibility")
-def visibility():
-    """Data-source (visibility) coverage — high-value techniques with NO data source to even
-    see them ('gaps under the gaps'). Detection coverage = rule coverage x data-source coverage."""
-    from attack_datasources import visibility_report
+def visibility(profile: str | None = None):
+    """Tiered visibility coverage — STIX-derived technique telemetry scored none/partial/good
+    from measured data quality (volume, freshness, retention, CIM mapping), with remediation
+    and threat-profile ranking. Detection coverage = rule coverage x data-source coverage."""
+    from attack_coverage import visibility_report
     mcp = get_mcp()
-    sourcetypes = mcp.enumerate_coverage().get("sourcetypes", [])
-    return visibility_report([s.get("name", "") for s in sourcetypes])
+    return visibility_report(_telemetry_sources(mcp), profile_name=profile or settings.threat_profile)
+
+
+@app.get("/threat-profiles")
+def threat_profiles():
+    """Available threat profiles (the ranking lens for blind spots)."""
+    from threat_profiles import list_profiles
+    return {"active": settings.threat_profile, "profiles": list_profiles()}
 
 
 class DeployRequest(BaseModel):
