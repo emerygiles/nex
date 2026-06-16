@@ -23,7 +23,11 @@ class Settings(BaseSettings):
 
     # Production safety. auto_deploy=False makes NEX PROPOSE detections and wait for human
     # approval (POST /deploy) instead of deploying them itself — the prod-safe default.
-    auto_deploy: bool = True
+    # Set AUTO_DEPLOY=true only for a hands-off demo/lab.
+    auto_deploy: bool = False
+
+    # Visibility engine: which threat profile ranks the blind spots (default | ransomware | cloud_saas).
+    threat_profile: str = "default"
 
     ai_provider: str = "scripted"  # foundation_sec | anthropic | scripted
     splunk_hosted_model: str = "foundation-sec-1.1-8b-instruct"

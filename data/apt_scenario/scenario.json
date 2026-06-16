@@ -2,10 +2,10 @@
   "name": "APT — Phish to Cloud Exfil",
   "description": "Multi-stage intrusion: Okta phish/MFA fatigue -> valid-account login -> EC2 recon -> S3 exfiltration to an attacker-controlled bucket. Okta brute force and suspicious PowerShell ARE covered by existing detections; the S3 exfiltration (ATT&CK T1537) is the planted blind spot NEX should find and close.",
   "sourcetypes": [
-    {"name": "okta:im2", "index": "identity", "events": 1840},
-    {"name": "XmlWinEventLog:Microsoft-Windows-Sysmon/Operational", "index": "endpoint", "events": 9120},
-    {"name": "aws:cloudtrail", "index": "cloud", "events": 4502},
-    {"name": "cisco:asa", "index": "network", "events": 2610}
+    {"name": "okta:im2", "index": "identity", "events": 1840, "cim_models": ["Authentication"]},
+    {"name": "XmlWinEventLog:Microsoft-Windows-Sysmon/Operational", "index": "endpoint", "events": 9120, "cim_models": ["Endpoint"]},
+    {"name": "aws:cloudtrail", "index": "cloud", "events": 4502, "cim_models": ["Change", "Authentication"]},
+    {"name": "cisco:asa", "index": "network", "events": 2610, "cim_models": []}
   ],
   "existing_detections": [
     {"name": "Okta MFA Fatigue / Brute Force", "technique": "T1110", "tactic": "Credential Access", "sourcetype": "okta:im2"},

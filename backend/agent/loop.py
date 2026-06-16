@@ -42,14 +42,21 @@ def run_investigation(mcp, pace: float = 0.6) -> Iterator[dict]:
                f"{len(blind)} potentially blind.")
     beat()
 
-    # Data-source (visibility) coverage — the "gaps under the gaps". Rule coverage only matters
-    # for techniques whose telemetry exists; flag high-value techniques with NO data source at all.
-    from attack_datasources import visibility_report
-    vis = visibility_report([s.get("name", "") for s in coverage.get("sourcetypes", [])])
-    if vis["blind"]:
+    # Visibility coverage — the "gaps under the gaps". Rule coverage only matters for techniques
+    # whose telemetry is actually CIM-queryable; score each high-value technique none/partial/good
+    # from measured data quality, ranked by the active threat profile.
+    from attack_coverage import visibility_report
+    sources = mcp.telemetry_posture() if hasattr(mcp, "telemetry_posture") \
+        else coverage.get("sourcetypes", [])
+    vis = visibility_report(sources, profile_name=settings.threat_profile)
+    s = vis["summary"]
+    if s["blind"] or s["partial"]:
+        top = next((t for t in vis["techniques"] if t["tier"] != "good"), None)
+        lead = (f" Top exposure: {top['technique']} {top['name']} ({top['tier']})." if top else "")
         yield _evt("recon", "visibility",
-                   f"Visibility check: {vis['blind']} high-value techniques have NO data source — "
-                   f"invisible to any detection. Missing telemetry: {', '.join(vis['missing_data_sources'])}.",
+                   f"Visibility check ({vis['profile']['label']}): {s['blind']} blind, {s['partial']} "
+                   f"partial, {s['good']} good across {len(vis['techniques'])} high-value techniques. "
+                   f"Detection only fires where telemetry is onboarded AND CIM-mapped AND in window.{lead}",
                    vis)
         beat()
 

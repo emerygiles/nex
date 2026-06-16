@@ -7,3 +7,6 @@ python-dotenv==1.0.1
 sse-starlette==2.2.1
 # Optional dev-time AI fallback (only needed if AI_PROVIDER=anthropic)
 anthropic==0.42.0
+# Optional build-time only: regenerate the ATT&CK telemetry map (scripts/build_attack_mapping.py).
+# Runtime loads the committed backend/data/attack_stix_mapping.json and does NOT need this.
+# mitreattack-python>=4.0.0
