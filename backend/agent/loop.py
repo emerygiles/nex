@@ -11,6 +11,7 @@ from typing import Iterator
 
 from agent.models import ModelClient
 from agent.tools import Tools
+from config import settings
 
 
 def _evt(phase: str, kind: str, message: str, data=None) -> dict:
@@ -40,6 +41,17 @@ def run_investigation(mcp, pace: float = 0.6) -> Iterator[dict]:
                f"{len(surface)} techniques observed in data; {covered} covered, "
                f"{len(blind)} potentially blind.")
     beat()
+
+    # Data-source (visibility) coverage — the "gaps under the gaps". Rule coverage only matters
+    # for techniques whose telemetry exists; flag high-value techniques with NO data source at all.
+    from attack_datasources import visibility_report
+    vis = visibility_report([s.get("name", "") for s in coverage.get("sourcetypes", [])])
+    if vis["blind"]:
+        yield _evt("recon", "visibility",
+                   f"Visibility check: {vis['blind']} high-value techniques have NO data source — "
+                   f"invisible to any detection. Missing telemetry: {', '.join(vis['missing_data_sources'])}.",
+                   vis)
+        beat()
 
     # No telemetry, or every observed technique is already covered → report and stop.
     if not surface:
@@ -89,6 +101,16 @@ def run_investigation(mcp, pace: float = 0.6) -> Iterator[dict]:
         detection = tools.grounded_detection(technique)
     yield _evt("ship", "detection", f"Detection authored for {technique}", detection)
     beat()
+
+    # Human-in-the-loop: in production NEX PROPOSES; a human approves the deploy (POST /deploy).
+    # The model proposes, the analyst decides. auto_deploy=True (demo) closes the loop on its own.
+    if not settings.auto_deploy:
+        yield _evt("ship", "pending",
+                   f"Detection ready for {technique}. Awaiting analyst approval before deploy.",
+                   {"technique": technique, "detection": detection, "existing": existing})
+        yield _evt("done", "status", "NEX proposed a fix — review and approve to deploy.")
+        return
+
     result = tools.deploy_detection(detection)
     yield _evt("ship", "tool", "deploy_detection()", result)
     new_cov = tools.check_existing_coverage(technique)

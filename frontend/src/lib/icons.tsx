@@ -40,3 +40,6 @@ export const DatabaseIcon = (p: SVGProps<SVGSVGElement>) => (
 export const SparkIcon = (p: SVGProps<SVGSVGElement>) => (
   <svg {...base(p)}><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3z" /></svg>
 );
+export const EyeOffIcon = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...base(p)}><path d="M3 3l18 18M10.6 10.6a3 3 0 004.2 4.2" /><path d="M9.4 5.2A9.7 9.7 0 0112 5c5 0 9 4.5 9 7-.4 1-1.2 2.2-2.4 3.3M6.1 6.1C3.8 7.5 2.3 9.7 2 12c.6 1.6 2.6 4.6 6 6" /></svg>
+);

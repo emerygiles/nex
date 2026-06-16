@@ -24,6 +24,27 @@ Every SOC has detection gaps. Finding them is slow, manual, and depends on an an
 4. **Skeptic gate** — a second pass tries to *disprove* the gap (existing rule? missing data?). Kills false positives.
 5. **Ship the fix** — emit SPL + Sigma + severity + ATT&CK ID, and deploy the saved search via MCP.
 
+## Visibility coverage — the "gaps under the gaps"
+
+Rule coverage only matters for techniques whose telemetry you actually collect. NEX also runs a
+**data-source coverage** check: it maps high-value ATT&CK techniques to the data sources required
+to even *observe* them, and flags the ones you have **no telemetry for at all** — techniques that
+don't show up as "uncovered," they show up as *nothing*. Detection coverage = rule coverage ×
+data-source coverage. (`GET /visibility`, the **Visibility** view, and a recon step in the loop.)
+
+> Credit: Splunk Enterprise Architect **Marcus House** raised this on the project's LinkedIn post.
+
+## Production safety
+
+- **SPL command allowlist** — any agent-run or deployed SPL is rejected if it contains a write/
+  exfil/execute command (`delete`, `outputlookup`, `sendemail`, `script`, `collect`, …). A
+  detection tool reads telemetry; it never deletes or shells out.
+- **Human-in-the-loop deploy** — set `AUTO_DEPLOY=false` and NEX *proposes* the detection and
+  waits for analyst approval (`POST /deploy` / the **Approve & deploy** button) instead of
+  deploying it itself. The model proposes; the analyst decides.
+- **Grounded proof** — a gap is proven by the technique's real telemetry presence, not by the
+  model's candidate rule, so a weak SPL can never read as "no gap."
+
 ## Two run modes
 
 | Mode | Data plane | Use |

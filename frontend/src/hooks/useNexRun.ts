@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { resetRun, streamRun } from "../lib/api";
+import { deployDetection, resetRun, streamRun } from "../lib/api";
 import type { Detection, StepEvent, SurfaceNode } from "../lib/types";
 
 export type GapInfo = { technique: string; hits: number; existing: number } | null;
@@ -19,10 +19,13 @@ export function useNexRun(onComplete?: () => void) {
   const [detection, setDetection] = useState<Detection | null>(null);
   const [deployed, setDeployed] = useState(false);
   const [verified, setVerified] = useState<string | null>(null);
+  const [pending, setPending] = useState(false); // detection awaiting analyst approval
+  const [deploying, setDeploying] = useState(false);
 
   const reset = useCallback(() => {
     setEvents([]); setSurface([]); setSourcetypes([]); setDetections([]);
     setActive(null); setGap(null); setDetection(null); setDeployed(false); setVerified(null);
+    setPending(false);
   }, []);
 
   const run = useCallback(() => {
@@ -43,12 +46,28 @@ export function useNexRun(onComplete?: () => void) {
         }
         if (e.kind === "gap") setGap((g) => g ?? { technique: e.data.technique, hits: 0, existing: 0 });
         if (e.kind === "detection") setDetection(e.data);
+        if (e.kind === "pending") { setDetection(e.data?.detection ?? null); setPending(true); }
         if (e.kind === "tool" && e.message.startsWith("deploy")) setDeployed(true);
         if (e.kind === "verified" && e.data?.covered) setVerified(e.data.technique);
       },
       () => { setRunning(false); onComplete?.(); }
     );
   }, [reset, onComplete]);
+
+  // Human-in-the-loop: analyst approves the proposed detection → deploy it for real.
+  const approve = useCallback(async () => {
+    if (!detection) return;
+    setDeploying(true);
+    try {
+      await deployDetection(detection);
+      setDeployed(true);
+      setVerified(detection.technique);
+      setPending(false);
+      onComplete?.();
+    } finally {
+      setDeploying(false);
+    }
+  }, [detection, onComplete]);
 
   const reopen = useCallback(async () => {
     await resetRun().catch(() => undefined);
@@ -67,7 +86,7 @@ export function useNexRun(onComplete?: () => void) {
 
   return {
     running, events, surface, sourcetypes, detections,
-    active, gap, detection, deployed, verified, stats, phase,
-    run, reopen,
+    active, gap, detection, deployed, verified, pending, deploying, stats, phase,
+    run, reopen, approve,
   };
 }

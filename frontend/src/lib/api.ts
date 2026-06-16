@@ -21,6 +21,24 @@ export async function getCoverage(): Promise<Coverage> {
   return r.json();
 }
 
+/** Data-source (visibility) coverage — high-value techniques with no data source at all. */
+export async function getVisibility(): Promise<import("./types").Visibility> {
+  const r = await fetch(`${BASE}/visibility`);
+  if (!r.ok) throw new Error(`visibility ${r.status}`);
+  return r.json();
+}
+
+/** Analyst-approved deploy of a proposed detection (human-in-the-loop). */
+export async function deployDetection(d: import("./types").Detection): Promise<any> {
+  const r = await fetch(`${BASE}/deploy`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name: d.name, spl: d.spl, technique: d.technique, tactic: d.tactic }),
+  });
+  if (!r.ok) throw new Error(`deploy ${r.status}`);
+  return r.json();
+}
+
 /** Re-open the blind spot (deletes NEX auto-authored detections). REST mode only. */
 export async function resetRun(): Promise<{ removed: string[] }> {
   const r = await fetch(`${BASE}/reset`, { method: "POST" });

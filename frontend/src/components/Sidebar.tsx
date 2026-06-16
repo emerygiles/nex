@@ -1,4 +1,4 @@
-import { CrosshairIcon, DatabaseIcon, LayersIcon, PulseIcon, ShieldIcon } from "../lib/icons";
+import { CrosshairIcon, DatabaseIcon, EyeOffIcon, LayersIcon, PulseIcon, ShieldIcon } from "../lib/icons";
 import type { Health } from "../lib/types";
 import type { View } from "../lib/types";
 import StatusDot from "./ui/StatusDot";
@@ -6,6 +6,7 @@ import StatusDot from "./ui/StatusDot";
 const NAV: { id: View; label: string; icon: typeof ShieldIcon }[] = [
   { id: "coverage", label: "Coverage", icon: ShieldIcon },
   { id: "surface", label: "Surface map", icon: CrosshairIcon },
+  { id: "visibility", label: "Visibility", icon: EyeOffIcon },
   { id: "detections", label: "Detections", icon: LayersIcon },
   { id: "activity", label: "Activity", icon: PulseIcon },
 ];

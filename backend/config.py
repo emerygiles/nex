@@ -21,6 +21,10 @@ class Settings(BaseSettings):
     splunk_index: str = "nex"
     nex_detection_tag: str = "NEX-DET"  # saved-search name prefix marking NEX-managed detections
 
+    # Production safety. auto_deploy=False makes NEX PROPOSE detections and wait for human
+    # approval (POST /deploy) instead of deploying them itself — the prod-safe default.
+    auto_deploy: bool = True
+
     ai_provider: str = "scripted"  # foundation_sec | anthropic | scripted
     splunk_hosted_model: str = "foundation-sec-1.1-8b-instruct"
     anthropic_api_key: str = ""

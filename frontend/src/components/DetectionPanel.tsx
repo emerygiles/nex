@@ -2,7 +2,16 @@ import { motion } from "framer-motion";
 import type { Detection } from "../lib/types";
 import { CheckIcon, DocIcon } from "../lib/icons";
 
-export default function DetectionPanel({ detection, deployed }: { detection: Detection | null; deployed: boolean }) {
+interface Props {
+  detection: Detection | null;
+  deployed: boolean;
+  pending?: boolean;
+  deploying?: boolean;
+  onApprove?: () => void;
+}
+
+export default function DetectionPanel({ detection, deployed, pending, deploying, onApprove }: Props) {
+  const status = deployed ? "Deployed" : pending ? "Awaiting approval" : "Ready";
   return (
     <section className="panel flex h-full flex-col overflow-hidden">
       <div className="flex items-center justify-between border-b border-line px-5 py-3.5">
@@ -10,11 +19,11 @@ export default function DetectionPanel({ detection, deployed }: { detection: Det
         {detection && (
           <span
             className={`inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-semibold ${
-              deployed ? "bg-secure/12 text-secure" : "bg-brand-50 text-brand-700"
+              deployed ? "bg-secure/12 text-secure" : pending ? "bg-blind-soft text-blind" : "bg-brand-50 text-brand-700"
             }`}
           >
             {deployed && <CheckIcon width={13} height={13} />}
-            {deployed ? "Deployed" : "Ready"}
+            {status}
           </span>
         )}
       </div>
@@ -48,6 +57,17 @@ export default function DetectionPanel({ detection, deployed }: { detection: Det
               {JSON.stringify(detection.sigma, null, 2)}
             </pre>
           </Field>
+
+          {pending && !deployed && (
+            <div className="flex items-center justify-between gap-3 rounded-lg border border-blind/25 bg-blind-soft px-3.5 py-3">
+              <p className="text-[12.5px] text-body">
+                NEX proposed this detection. <span className="font-medium text-ink">An analyst approves before it deploys.</span>
+              </p>
+              <button className="btn-primary shrink-0" onClick={onApprove} disabled={deploying}>
+                {deploying ? "Deploying…" : "Approve & deploy"}
+              </button>
+            </div>
+          )}
         </motion.div>
       )}
     </section>

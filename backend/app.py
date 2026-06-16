@@ -11,6 +11,7 @@ import json
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
 from config import settings
@@ -46,6 +47,7 @@ def health():
         "brain": settings.ai_provider,
         "mcp": plane,
         "mcp_url": url,
+        "auto_deploy": settings.auto_deploy,
     }
 
 
@@ -61,6 +63,36 @@ def coverage():
         "detections": cov.get("detections", []),
         "surface": surface,
     }
+
+
+@app.get("/visibility")
+def visibility():
+    """Data-source (visibility) coverage — high-value techniques with NO data source to even
+    see them ('gaps under the gaps'). Detection coverage = rule coverage x data-source coverage."""
+    from attack_datasources import visibility_report
+    mcp = get_mcp()
+    sourcetypes = mcp.enumerate_coverage().get("sourcetypes", [])
+    return visibility_report([s.get("name", "") for s in sourcetypes])
+
+
+class DeployRequest(BaseModel):
+    name: str
+    spl: str
+    technique: str
+    tactic: str = ""
+
+
+@app.post("/deploy")
+def deploy(req: DeployRequest):
+    """Analyst-approved deploy of a proposed detection (human-in-the-loop when auto_deploy=False)."""
+    mcp = get_mcp()
+    if not hasattr(mcp, "save_detection"):
+        return {"ok": False, "note": "deploy not supported in this mode"}
+    try:
+        result = mcp.save_detection(name=req.name, spl=req.spl, technique=req.technique, tactic=req.tactic)
+    except Exception as e:  # noqa: BLE001 - surface a safe error (e.g. blocked unsafe SPL)
+        return {"ok": False, "error": f"{type(e).__name__}: {e}"}
+    return result
 
 
 @app.get("/scenario")

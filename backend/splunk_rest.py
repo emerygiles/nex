@@ -31,6 +31,27 @@ def _saved_search_path(base: str, name: str) -> str:
 
 _ATTACK_RE = re.compile(r"ATT&CK=(T\d{4}(?:\.\d{3})?)")
 
+# SPL commands that write, exfiltrate, or execute — never allowed in an agent-run search.
+# A detection tool must read telemetry, not delete it or shell out. This blocks a hallucinated
+# or adversarial `... | delete` / `| outputlookup` from ever reaching a real, admin-privileged search.
+_BLOCKED_SPL = {
+    "delete", "outputlookup", "outputcsv", "output", "collect", "tscollect", "mcollect",
+    "sendemail", "sendalert", "script", "runshellscript", "crawl", "dump", "loadjob",
+    "savedsearch",
+}
+
+
+class UnsafeSPLError(ValueError):
+    """Raised when an SPL string contains a write/exfil/execute command."""
+
+
+def assert_safe_spl(spl: str) -> None:
+    """Reject SPL that contains any blocked (write/exfil/execute) command after a pipe."""
+    for segment in spl.split("|")[1:]:
+        cmd = segment.strip().split(None, 1)[0].lower() if segment.strip() else ""
+        if cmd in _BLOCKED_SPL:
+            raise UnsafeSPLError(f"blocked unsafe SPL command: '{cmd}'")
+
 
 class SplunkRest:
     name = "splunk_rest"
@@ -66,6 +87,7 @@ class SplunkRest:
     def _oneshot(self, spl: str) -> list[dict]:
         """Run a blocking search and return result rows."""
         search = self._normalize(spl)
+        assert_safe_spl(search)  # refuse write/exfil/execute commands before they hit Splunk
         r = self._http.post(
             f"{self._base}/services/search/jobs/export",
             # Wide window so demo/lab data isn't missed if it was ingested days earlier.
@@ -125,7 +147,11 @@ class SplunkRest:
         return list(agg.values())
 
     def run_search(self, spl: str) -> dict:
-        rows = self._oneshot(spl)
+        try:
+            rows = self._oneshot(spl)
+        except UnsafeSPLError:
+            # A blocked rule fires nothing; the loop then falls back to a grounded, safe detection.
+            return {"hits": 0, "sample": [], "blocked": True}
         total = 0
         for r in rows:
             try:
@@ -152,6 +178,7 @@ class SplunkRest:
 
     # --- write tool ---------------------------------------------------------
     def save_detection(self, name: str, spl: str, technique: str, tactic: str = "") -> dict:
+        assert_safe_spl(spl)  # never deploy a saved search containing a write/exfil/execute command
         search = spl if spl.strip().lower().startswith(("search ", "|")) else f"search {spl}"
         saved_name = f"{self._tag} - {name}" if not name.startswith(self._tag) else name
         # Remove any prior version so re-runs are idempotent.
